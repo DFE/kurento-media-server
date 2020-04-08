@@ -47,7 +47,14 @@
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoMediaServer"
 
+#ifdef _WIN32
+// For Windows this is relative to top installation directory
+// of Kurento. Maybe move at least the logs later to %APPDATA%.
+const std::string DEFAULT_CONFIG_FILE = "\\etc\\kurento\\kurento.conf.json";
+const std::string DEFAULT_LOGS_PATH   = "\\logs";
+#else
 const std::string DEFAULT_CONFIG_FILE = "/etc/kurento/kurento.conf.json";
+#endif
 const std::string ENV_PREFIX = "KURENTO_";
 const int DEFAULT_LOG_FILE_SIZE = 100;
 const int DEFAULT_LOG_FILE_COUNT = 10;
@@ -73,6 +80,7 @@ createTransportFromConfig (boost::property_tree::ptree &config)
   return transport;
 }
 
+#ifndef _WIN32
 static void
 signal_handler (int signo)
 {
@@ -97,6 +105,7 @@ signal_handler (int signo)
     break;
   }
 }
+#endif // _WIN32
 
 static void
 kms_init_dependencies (int *argc, char ***argv)
@@ -116,7 +125,9 @@ kms_init_dependencies (int *argc, char ***argv)
 int
 main (int argc, char **argv)
 {
+#ifndef _WIN32
   struct sigaction signalAction {};
+#endif
   std::shared_ptr<Transport> transport;
   boost::property_tree::ptree config;
   std::string confFile;
@@ -135,6 +146,25 @@ main (int argc, char **argv)
   }
 
   try {
+#ifdef _WIN32
+    std::string default_config_file;
+    std::string default_logs_path;
+
+    gchar *app_dir = g_win32_get_package_installation_directory_of_module (NULL);
+    if (app_dir) {
+      default_config_file = std::string (app_dir) + DEFAULT_CONFIG_FILE;
+      default_logs_path   = std::string (app_dir) + DEFAULT_LOGS_PATH;
+      g_free (app_dir);
+    } else {
+      // If we cannot find out the installation directory, use the current
+      // working directory instead.
+      default_config_file = "." + DEFAULT_CONFIG_FILE;
+      default_logs_path   = "." + DEFAULT_LOGS_PATH;
+    }
+#else
+    std::string default_config_file = std::string (DEFAULT_CONFIG_FILE);
+#endif
+
     boost::program_options::options_description desc ("kurento-media-server usage");
 
     desc.add_options()
@@ -144,10 +174,15 @@ main (int argc, char **argv)
     ("modules-path,p", boost::program_options::value<std::string>
      (&modulesPath), "Colon-separated path(s) where Kurento modules can be found")
     ("conf-file,f", boost::program_options::value<std::string>
-     (&confFile)->default_value (DEFAULT_CONFIG_FILE),
+     (&confFile)->default_value (default_config_file),
      "Configuration file location")
+#ifdef _WIN32
+    ("logs-path,d", boost::program_options::value <std::string> (&logsPath)->default_value(default_logs_path),
+     "Path where rotating log files will be stored")
+#else
     ("logs-path,d", boost::program_options::value <std::string> (&logsPath),
      "Path where rotating log files will be stored")
+#endif
     ("modules-config-path,c",
      boost::program_options::value <std::string> (&modulesConfigPath),
      "Path where modules config files can be found")
@@ -230,12 +265,14 @@ main (int argc, char **argv)
     exit (1);
   }
 
+#ifndef _WIN32
   /* Install our signal handler */
   signalAction.sa_handler = signal_handler;
 
   sigaction(SIGINT, &signalAction, nullptr);
   sigaction(SIGTERM, &signalAction, nullptr);
   sigaction(SIGPIPE, &signalAction, nullptr);
+#endif
 
   GST_INFO ("Kurento Media Server version: %s", get_version () );
 

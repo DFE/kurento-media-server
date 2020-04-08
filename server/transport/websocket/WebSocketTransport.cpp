@@ -46,7 +46,7 @@ const std::string DEFAULT_LOCAL_ADDRESS = "localhost";
 
 /* Default config values */
 const bool WEBSOCKET_IPV6_DEFAULT = true;
-const ushort WEBSOCKET_PORT_DEFAULT = 8888;
+const gushort WEBSOCKET_PORT_DEFAULT = 8888;
 const std::string WEBSOCKET_PATH_DEFAULT = "kurento";
 const int WEBSOCKET_THREADS_DEFAULT = 10;
 const int WEBSOCKET_CONNQUEUE_DEFAULT =
@@ -74,8 +74,8 @@ WebSocketTransport::WebSocketTransport (const boost::property_tree::ptree
   processor (processor)
 {
   bool ipv6;
-  ushort port;
-  ushort securePort;
+  gushort port;
+  gushort securePort;
   int connqueue;
   std::string registrarAddress;
   std::string localAddress;
@@ -83,19 +83,19 @@ WebSocketTransport::WebSocketTransport (const boost::property_tree::ptree
   ipv6 = config.get<bool> ("mediaServer.net.websocket.ipv6",
                            WEBSOCKET_IPV6_DEFAULT);
 
-  port = config.get<ushort> ("mediaServer.net.websocket.port",
+  port = config.get<gushort> ("mediaServer.net.websocket.port",
                              WEBSOCKET_PORT_DEFAULT);
 
-  securePort = config.get<ushort> ("mediaServer.net.websocket.secure.port", 0);
+  securePort = config.get<gushort> ("mediaServer.net.websocket.secure.port", 0);
 
   path = config.get<std::string> ("mediaServer.net.websocket.path",
                                   WEBSOCKET_PATH_DEFAULT);
 
-  connqueue = config.get<uint> ("mediaServer.net.websocket.connqueue",
+  connqueue = config.get<guint> ("mediaServer.net.websocket.connqueue",
                                 WEBSOCKET_CONNQUEUE_DEFAULT);
 
   try {
-    n_threads = config.get<uint> ("mediaServer.net.websocket.threads");
+    n_threads = config.get<guint> ("mediaServer.net.websocket.threads");
 
     if (n_threads < 1) {
       throw boost::property_tree::ptree_bad_data ("Invalid threads number",

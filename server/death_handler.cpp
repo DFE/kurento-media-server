@@ -37,7 +37,9 @@
 #include "death_handler.hpp"
 #include <assert.h>
 #include <cxxabi.h>
+#ifndef _WIN32
 #include <execinfo.h>
+#endif
 #include <malloc.h>
 #include <pthread.h>
 #include <signal.h>
@@ -46,11 +48,13 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
+#ifndef _WIN32
 #include <wait.h>
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
 #include <dlfcn.h>
+#endif
 
 #include <string>
 
@@ -155,7 +159,9 @@ bool DeathHandler::color_output_ = true;
 bool DeathHandler::thread_safe_ = true;
 char *DeathHandler::memory_ = NULL;
 
+#ifndef _WIN32
 typedef void (*sa_sigaction_handler) (int, siginfo_t *, void *);
+#endif
 
 DeathHandler::DeathHandler()
 {
@@ -163,6 +169,7 @@ DeathHandler::DeathHandler()
     memory_ = new char[kNeededMemory];
   }
 
+#ifndef _WIN32
   struct sigaction sa;
 
   sa.sa_sigaction = (sa_sigaction_handler) SignalHandler;
@@ -176,10 +183,12 @@ DeathHandler::DeathHandler()
   sigaction (SIGABRT, &sa, NULL);
 
   sigaction (SIGFPE, &sa, NULL);
+#endif
 }
 
 DeathHandler::~DeathHandler()
 {
+#ifndef _WIN32
   struct sigaction sa;
 
   sigaction (SIGSEGV, NULL, &sa);
@@ -193,6 +202,7 @@ DeathHandler::~DeathHandler()
   sigaction (SIGFPE, NULL, &sa);
   sa.sa_handler = SIG_DFL;
   sigaction (SIGFPE, &sa, NULL);
+#endif
   delete[] memory_;
 }
 
@@ -291,13 +301,17 @@ void DeathHandler::set_thread_safe (bool value)
 
 INLINE static void safe_abort()
 {
+#ifndef _WIN32
   struct sigaction sa;
   sigaction (SIGABRT, NULL, &sa);
   sa.sa_handler = SIG_DFL;
   kill (getppid(), SIGCONT);
   sigaction (SIGABRT, &sa, NULL);
+#endif
   abort();
 }
+
+#ifndef _WIN32
 
 /// @brief Invokes addr2line utility to determine the function name
 /// and the line information from an address in the code segment.
@@ -447,6 +461,8 @@ static std::string nonStripped (const char *image)
   return image;
 }
 
+#endif // _WIN32
+
 /// @brief Used to workaround backtrace() usage of malloc().
 void *DeathHandler::MallocHook (size_t size,
                                 const void * /* caller */)
@@ -474,6 +490,7 @@ void *DeathHandler::MallocHook (size_t size,
 
 void DeathHandler::SignalHandler (int sig, void * /* info */, void *secret)
 {
+#ifndef _WIN32
   // Stop all other running threads by forking
   pid_t forkedPid = fork();
 
@@ -780,6 +797,7 @@ void DeathHandler::SignalHandler (int sig, void * /* info */, void *secret)
     // Resume the parent process
     kill (getppid(), SIGCONT);
   }
+#endif // _WIN32
 
   // This is called in the child process
   _Exit (EXIT_SUCCESS);

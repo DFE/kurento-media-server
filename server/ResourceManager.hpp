@@ -18,9 +18,14 @@
 #ifndef __RESOURCE_MANAGER_H__
 #define __RESOURCE_MANAGER_H__
 
-// rlim_t: Unsigned integer type used for limit values
-// (see `man sys_resource.h`)
+#ifdef _WIN32
+typedef unsigned long rlim_t;
+#define RLIM_INFINITY ((rlim_t)-1)
+#else
+ // rlim_t: Unsigned integer type used for limit values
+ // (see `man sys_resource.h`)
 #include <sys/resource.h>
+#endif
 
 namespace kurento
 {
