@@ -1,4 +1,12 @@
-find_package(websocketpp 0.7.0 REQUIRED)
+if(MSYS)
+  # On MSYS the develop branch is required to compile against
+  # newer Boost versions. Unfortunately that does not signal
+  # any newer package version than 0.8.0, which is essentially
+  # the same as the master branch.
+  find_package(websocketpp REQUIRED)
+else()
+ find_package(websocketpp 0.7.0 REQUIRED)
+endif()
 
 set (WEBSOCKET_SOURCES
   WebSocketTransport.cpp

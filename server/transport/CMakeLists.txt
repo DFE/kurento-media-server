@@ -12,10 +12,15 @@ endif()
 
 add_dependencies(transport websocketTransport)
 
+if(MSYS)
+set(TRANSPORT_LINK_OS_LIBRARIES ws2_32 mswsock)
+endif()
+
 target_link_libraries(transport
   ${GSTREAMER_LIBRARIES}
   ${KMSCORE_LIBRARIES}
   websocketTransport
+  ${TRANSPORT_LINK_OS_LIBRARIES}
 )
 
 set_property (TARGET transport

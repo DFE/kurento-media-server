@@ -16,6 +16,7 @@
  */
 
 #include "ResourceManager.hpp"
+
 #include <gst/gst.h>
 #include <vector>
 #include <iostream>
@@ -24,6 +25,11 @@
 #include <KurentoException.hpp>
 #include <MediaSet.hpp>
 
+#ifdef _WIN32
+  #include <windows.h>
+  #include <tlhelp32.h>
+#endif
+
 #define GST_CAT_DEFAULT kurento_resource_manager
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoResourceManager"
@@ -31,6 +37,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
+#ifdef __linux__
 static long int
 get_int (std::string &str, char sep, int nToken)
 {
@@ -50,10 +57,28 @@ get_int (std::string &str, char sep, int nToken)
 
   return 0;
 }
+#endif
 
 static long int
 getNumberOfThreads ()
 {
+#ifdef _WIN32
+  // See https://stackoverflow.com/questions/3749668/how-to-query-the-thread-count-of-a-process-using-the-regular-windows-c-c-apis
+  DWORD  const   pid        = GetCurrentProcessId ();
+  HANDLE const   snapshot   = CreateToolhelp32Snapshot (TH32CS_SNAPALL, 0);
+  PROCESSENTRY32 entry      = { 0 };
+  entry.dwSize              = sizeof (entry);
+
+  BOOL ret = Process32First (snapshot, &entry);
+
+  while (ret && entry.th32ProcessID != pid) {
+	  ret = Process32Next (snapshot, &entry);
+  }
+
+  CloseHandle (snapshot);
+  // in case of an error, simply count this thread
+  return ret ? entry.cntThreads : 1;
+#else
   std::string stat;
   std::ifstream stat_file ("/proc/self/stat");  // `man proc`
 
@@ -61,6 +86,7 @@ getNumberOfThreads ()
   stat_file.close();
 
   return get_int (stat, ' ', 19);
+#endif
 }
 
 rlim_t
@@ -69,10 +95,16 @@ getMaxThreads ()
   static rlim_t limit = 0;
 
   if (limit == 0) {
+#ifdef _WIN32
+    // Safe assumption based on
+    // https://docs.microsoft.com/en-us/archive/blogs/markrussinovich/pushing-the-limits-of-windows-processes-and-threads
+    limit = (rlim_t)2000;
+#else
     struct rlimit limits;
     getrlimit (RLIMIT_NPROC, &limits);
 
     limit = limits.rlim_cur;
+#endif
   }
 
   return limit;
@@ -109,10 +141,21 @@ getMaxOpenFiles ()
   static rlim_t limit = 0;
 
   if (limit == 0) {
+#ifdef _WIN32
+	static bool increased = false;
+	if (!increased) {
+		// Set to maximum possible.
+		// See https://stackoverflow.com/questions/1803552/setmaxstdio-max-open-files-is-2048-only
+		_setmaxstdio(2048);
+		increased = true;
+	}
+    limit = (rlim_t)_getmaxstdio();
+#else
     struct rlimit limits;
     getrlimit (RLIMIT_NOFILE, &limits);
 
     limit = limits.rlim_cur;
+#endif
   }
 
   return limit;
@@ -122,6 +165,13 @@ static long int
 getNumberOfOpenFiles ()
 {
   long int openFiles = 0;
+#ifdef _WIN32
+  // GetProcessHandleCount() returns the number of kernel handles
+  // which is significantly higher than what the user process has opened.
+  // GetGuiResources() seems to work even without having an application
+  // window (despite the API description of Microsoft).
+  openFiles = (long int) GetGuiResources(GetCurrentProcess(), GR_USEROBJECTS);
+#else
   DIR *d;
   struct dirent *dir;
 
@@ -132,6 +182,7 @@ getNumberOfOpenFiles ()
   }
 
   closedir (d);
+#endif
 
   return openFiles;
 }
@@ -179,7 +230,11 @@ void killServerOnLowResources (float limit_percent)
       if (e.getCode() == NOT_ENOUGH_RESOURCES) {
         GST_ERROR ("Resources over the limit, server will be killed: %s",
             e.what());
+#ifdef _WIN32
+        exit (1);
+#else
         kill ( getpid(), SIGTERM );
+#endif
       }
     }
   });

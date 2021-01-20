@@ -67,10 +67,17 @@ generic_find(LIBNAME Boost COMPONENTS system filesystem program_options unit_tes
 
 find_package(OpenSSL REQUIRED)
 
+if(MSYS)
+  # MSYS2 comes only with the stable version of GStreamer.
+  set(GST_VERSION 1.0)
+else()
+  set(GST_VERSION 1.5)
+endif()
+
 find_package(PkgConfig)
 pkg_check_modules(GLIBMM REQUIRED glibmm-2.4)
-pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.5)
-pkg_check_modules(GSTREAMER_SDP REQUIRED gstreamer-sdp-1.5)
+pkg_check_modules(GSTREAMER REQUIRED gstreamer-${GST_VERSION})
+pkg_check_modules(GSTREAMER_SDP REQUIRED gstreamer-sdp-${GST_VERSION})
 pkg_check_modules(EVENT REQUIRED libevent>=2.0.16)
 
 add_subdirectory(server)

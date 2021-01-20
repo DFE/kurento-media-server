@@ -29,10 +29,14 @@ endif()
 
 add_dependencies(kurento-media-server transport)
 
+if(NOT MSYS)
+  set(SERVER_LINK_OS_LIBRARIES dl)
+endif()
+
 target_link_libraries (kurento-media-server
   ${Boost_LIBRARIES}
   transport
-  dl
+  ${SERVER_LINK_OS_LIBRARIES}
 )
 
 set_property (TARGET kurento-media-server

@@ -36,7 +36,7 @@ typedef websocketpp::lib::shared_ptr<boost::asio::ssl::context> context_ptr;
 
 WebSocketRegistrar::WebSocketRegistrar(const std::string &registrarAddress,
                                        std::string localAddress,
-                                       ushort localPort, ushort localSecurePort,
+                                       gushort localPort, gushort localSecurePort,
                                        std::string path)
     : localAddress(std::move(localAddress)), localPort(localPort),
       localSecurePort(localSecurePort), path(std::move(path)),
